@@ -3,8 +3,6 @@ import os
 import re
 import io
 from telegram.request import HTTPXRequest
-import whisper
-import edge_tts
 WHISPER_MODEL = "base"
 import ast
 import math
@@ -26,7 +24,6 @@ from dotenv import load_dotenv
 
 from google import genai
 
-import ollama
 
 import pandas as pd
 
@@ -51,6 +48,15 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+
+import whisper
+import ollama
+import edge_tts
+try:
+    import ollama
+except ImportError:
+    ollama = None
+
 
 from database import (
     SessionLocal,

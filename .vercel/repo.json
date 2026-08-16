@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_0p5AusHr5351mhl85QrF6A1z7rLe",
+      "name": "telegram-chat-bot",
+      "directory": ".",
+      "orgId": "team_O8yt82aX5YKGVC9laC5yEwp0"
+    }
+  ]
+}

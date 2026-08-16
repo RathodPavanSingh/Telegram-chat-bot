@@ -1,27 +1,62 @@
-import asyncio
 from fastapi import FastAPI, Request
 from telegram import Update
-
-from bot import build_application
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
+import os
 
 app = FastAPI()
 
-telegram_app = None
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+if not TOKEN:
+    raise RuntimeError("TELEGRAM_BOT_TOKEN is missing")
 
 
-@app.on_event("startup")
-async def startup_event():
-    global telegram_app
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🤖 AI Engineering Assistant\n\n"
+        "✅ Bot is online on Vercel.\n"
+        "Send me a question."
+    )
 
-    telegram_app = build_application()
 
-    await telegram_app.initialize()
+async def text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "✅ Telegram webhook is working.\n\n"
+        f"Your message:\n{update.message.text}"
+    )
 
 
-@app.post("/")
+telegram_app = (
+    Application.builder()
+    .token(TOKEN)
+    .build()
+)
+
+telegram_app.add_handler(
+    CommandHandler("start", start)
+)
+
+telegram_app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        text_message
+    )
+)
+
+
+@app.get("/")
+async def health():
+    return {"ok": True, "service": "AI Engineering Assistant"}
+
+
+@app.post("/api")
 async def telegram_webhook(request: Request):
-
-    global telegram_app
 
     data = await request.json()
 
@@ -30,6 +65,8 @@ async def telegram_webhook(request: Request):
         telegram_app.bot
     )
 
+    await telegram_app.initialize()
     await telegram_app.process_update(update)
+    await telegram_app.shutdown()
 
     return {"ok": True}
