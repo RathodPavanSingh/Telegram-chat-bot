@@ -1,17 +1,11 @@
-
 fastapi
-python-telegram-bot
+python-telegram-bot[job-queue]
 google-genai
 python-dotenv
 sqlalchemy
 psycopg2-binary
 requests
 beautifulsoup4
-ollama
-edge-tts
-openai-whisper
-fastapi
-python-telegram-bot
 
 
 

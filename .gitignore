@@ -1,9 +1,9 @@
-.env
 .venv/
 __pycache__/
+.env
 uploads/
 charts/
-*.pyc
-.vercel
-.env*
-.env.local
+*.pt
+*.bin
+*.gguf
+*.safetensors
