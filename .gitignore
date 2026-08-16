@@ -4,3 +4,6 @@ __pycache__/
 uploads/
 charts/
 *.pyc
+.vercel
+.env*
+.env.local
