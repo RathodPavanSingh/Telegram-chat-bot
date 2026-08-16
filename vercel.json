@@ -1,8 +1,3 @@
 {
-  "version": 2,
-  "functions": {
-    "api/telegram.py": {
-      "runtime": "python3.13"
-    }
-  }
+  "version": 2
 }
