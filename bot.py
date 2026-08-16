@@ -794,22 +794,30 @@ async def ask_gemini(
 # OLLAMA FALLBACK
 # =========================================================
 async def ask_ollama(prompt, language="en"):
-    try:
-        print("🦙 Calling Ollama...")
+    print("🦙 Calling Ollama...")
 
-        result = await asyncio.to_thread(
-            ollama.chat,
-            model="qwen3:1.7b",
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_INSTRUCTION
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                ollama.chat,
+                model="qwen3:1.7b",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a professional AI assistant. "
+                            "Answer clearly and accurately. "
+                            "For coding questions, provide runnable code. "
+                            "Do not use LaTeX."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+            ),
+            timeout=120,
         )
 
         answer = result["message"]["content"].strip()
@@ -3069,7 +3077,7 @@ async def ask_ai(prompt, language="en"):
 # =========================================================
 # MAIN
 # =========================================================
-def main():
+def build_application():
     from telegram.request import HTTPXRequest
 
     telegram_request = HTTPXRequest(
@@ -3318,14 +3326,17 @@ def main():
             ai_chat
         )
     )
+    return bot_app
+def main():
 
+    bot_app = build_application()
 
     print("================================")
     print("🤖 AI ENGINEERING ASSISTANT")
     print("================================")
 
-    bot_app.run_polling()
-
+    bot_app.run_polling()    
+     
   
 
 
