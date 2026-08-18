@@ -101,7 +101,7 @@ telegram_app.add_handler(
 )
 
 
-@app.get("/")
+@app.get("/api")
 async def health():
     return {
         "ok": True,
@@ -109,7 +109,7 @@ async def health():
     }
 
 
-@app.post("/")
+@app.post("/api")
 async def telegram_webhook(
     request: Request
 ):
