@@ -1,9 +1,5 @@
-import os
-
 from fastapi import FastAPI, Request
 from telegram import Update
-from google import genai
-
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -11,253 +7,82 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-
-from database import (
-    SessionLocal,
-    User,
-    Conversation,
-)
+import os
 
 app = FastAPI()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-3.6-flash",
-)
 
 if not TOKEN:
     raise RuntimeError("TELEGRAM_BOT_TOKEN is missing")
 
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY is missing")
-
-client = genai.Client(
-    api_key=GEMINI_API_KEY
-)
-
-telegram_app = (
+bot_app = (
     Application.builder()
     .token(TOKEN)
     .build()
 )
 
 
-def get_or_create_user(tg_user):
-    db = SessionLocal()
-
-    try:
-        user = (
-            db.query(User)
-            .filter(
-                User.telegram_user_id == tg_user.id
-            )
-            .first()
-        )
-
-        if user is None:
-            user = User(
-                telegram_user_id=tg_user.id,
-                username=tg_user.username,
-                first_name=tg_user.first_name,
-                last_name=tg_user.last_name,
-                language="en",
-            )
-            db.add(user)
-        else:
-            user.username = tg_user.username
-            user.first_name = tg_user.first_name
-            user.last_name = tg_user.last_name
-            user.last_seen = __import__(
-                "datetime"
-            ).datetime.now(
-                __import__("datetime").timezone.utc
-            )
-
-        db.commit()
-        return user
-
-    except Exception:
-        db.rollback()
-        raise
-
-    finally:
-        db.close()
-
-
-def save_message(user_id, role, message):
-    db = SessionLocal()
-
-    try:
-        db.add(
-            Conversation(
-                telegram_user_id=user_id,
-                role=role,
-                message=message,
-            )
-        )
-        db.commit()
-
-    except Exception:
-        db.rollback()
-        raise
-
-    finally:
-        db.close()
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    get_or_create_user(update.effective_user)
-
     await update.message.reply_text(
         "🤖 AI Engineering Assistant\n\n"
-        "✅ Online\n\n"
-        "Ask me anything about engineering, coding, "
-        "mathematics, physics, education, or general topics."
+        "✅ Vercel webhook is working."
     )
 
 
 async def text_message(
     update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE
 ):
-    question = (update.message.text or "").strip()
+    text = (update.message.text or "").strip()
 
-    if not question:
-        return
-
-    user_id = update.effective_user.id
-
-    try:
-        get_or_create_user(
-            update.effective_user
-        )
-
-        print(
-            f"📩 User {user_id}: {question}"
-        )
-
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=(
-                "You are a professional AI Engineering Assistant.\n\n"
-                "Answer clearly and accurately.\n"
-                "For mathematics and engineering, show steps "
-                "and units.\n"
-                "For programming, provide runnable code.\n"
-                "Use readable Unicode symbols instead of raw LaTeX.\n\n"
-                f"Question:\n{question}"
-            ),
-        )
-
-        answer = (
-            response.text.strip()
-            if response.text
-            else "❌ No answer generated."
-        )
-
-        save_message(
-            user_id,
-            "user",
-            question,
-        )
-
-        save_message(
-            user_id,
-            "assistant",
-            answer,
-        )
-
-        await update.message.reply_text(
-            answer
-        )
-
-    except Exception as e:
-
-     error_text = str(e)
-
-    print("================================")
-    print("❌ VERCEL AI ERROR")
-    print(repr(e))
-    print("================================")
-
-    if "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
-
-        message = (
-            "⚠️ Gemini API quota exhausted.\n\n"
-            "The Telegram bot is working, but the current "
-            "Gemini API project has reached its available quota."
-        )
-
-    elif "401" in error_text or "403" in error_text:
-
-        message = (
-            "❌ Gemini API authentication failed.\n\n"
-            "Check GEMINI_API_KEY in Vercel Environment Variables."
-        )
-
-    elif "404" in error_text:
-
-        message = (
-            "❌ Gemini model is unavailable.\n\n"
-            f"Current model: {GEMINI_MODEL}"
-        )
-
-    elif "DATABASE" in error_text.upper():
-        message = (
-            "❌ Database error.\n\n"
-            "Check DATABASE_URL and PostgreSQL."
-        )
-
-    else:
-
-        message = (
-            "❌ AI request failed.\n\n"
-            "Check the Vercel Runtime Logs for the exact error."
-        )
-
-    await update.message.reply_text(message)
+    await update.message.reply_text(
+        "✅ Message received!\n\n"
+        f"You said:\n{text}"
+    )
 
 
-telegram_app.add_handler(
+bot_app.add_handler(
     CommandHandler("start", start)
 )
 
-telegram_app.add_handler(
+bot_app.add_handler(
     MessageHandler(
         filters.TEXT & ~filters.COMMAND,
-        text_message,
+        text_message
     )
 )
 
 
+@app.get("/")
 @app.get("/api")
 async def health():
     return {
         "ok": True,
-        "service": "AI Engineering Assistant",
+        "service": "AI Engineering Assistant"
     }
 
 
+@app.post("/")
 @app.post("/api")
-async def telegram_webhook(
-    request: Request,
-):
-    data = await request.json()
-
-    update = Update.de_json(
-        data,
-        telegram_app.bot,
-    )
-
-    await telegram_app.initialize()
+async def webhook(request: Request):
 
     try:
-        await telegram_app.process_update(
-            update
-        )
-    finally:
-        await telegram_app.shutdown()
+        data = await request.json()
 
-    return {"ok": True}
+        update = Update.de_json(
+            data,
+            bot_app.bot
+        )
+
+        await bot_app.initialize()
+        await bot_app.process_update(update)
+
+        return {"ok": True}
+
+    except Exception as e:
+        print("WEBHOOK ERROR:", repr(e))
+        return {
+            "ok": False,
+            "error": str(e)
+        }
