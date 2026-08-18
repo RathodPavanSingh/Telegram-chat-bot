@@ -174,14 +174,50 @@ async def text_message(
         )
 
     except Exception as e:
-        print(
-            "❌ AI ERROR:",
-            repr(e)
+
+     error_text = str(e)
+
+    print("================================")
+    print("❌ VERCEL AI ERROR")
+    print(repr(e))
+    print("================================")
+
+    if "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
+
+        message = (
+            "⚠️ Gemini API quota exhausted.\n\n"
+            "The Telegram bot is working, but the current "
+            "Gemini API project has reached its available quota."
         )
 
-        await update.message.reply_text(
-            "⚠️ AI service is currently unavailable."
+    elif "401" in error_text or "403" in error_text:
+
+        message = (
+            "❌ Gemini API authentication failed.\n\n"
+            "Check GEMINI_API_KEY in Vercel Environment Variables."
         )
+
+    elif "404" in error_text:
+
+        message = (
+            "❌ Gemini model is unavailable.\n\n"
+            f"Current model: {GEMINI_MODEL}"
+        )
+
+    elif "DATABASE" in error_text.upper():
+        message = (
+            "❌ Database error.\n\n"
+            "Check DATABASE_URL and PostgreSQL."
+        )
+
+    else:
+
+        message = (
+            "❌ AI request failed.\n\n"
+            "Check the Vercel Runtime Logs for the exact error."
+        )
+
+    await update.message.reply_text(message)
 
 
 telegram_app.add_handler(
