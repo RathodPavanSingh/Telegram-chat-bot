@@ -11,6 +11,7 @@ from telegram.ext import (
 import os
 import base64
 from io import BytesIO
+from database import SessionLocal, User, Conversation
 
 app = FastAPI()
 
@@ -159,7 +160,151 @@ async def image_question(
             "❌ I couldn't process the image.\n\n"
             "Please upload a clearer image."
         )
-# ====        
+# ====  
+# ======prfile===
+async def profile_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    user_id = update.effective_user.id
+
+    db = SessionLocal()
+
+    try:
+        user = (
+            db.query(User)
+            .filter(
+                User.telegram_user_id == user_id
+            )
+            .first()
+        )
+
+        if not user:
+            await update.message.reply_text(
+                "❌ Profile not found.\n\n"
+                "Please use /start first."
+            )
+            return
+
+        message_count = (
+            db.query(Conversation)
+            .filter(
+                Conversation.telegram_user_id == user_id
+            )
+            .count()
+        )
+
+        username = (
+            f"@{user.username}"
+            if user.username
+            else "Not set"
+        )
+
+        await update.message.reply_text(
+            "👤 MY PROFILE\n\n"
+            f"🆔 Telegram ID: {user.telegram_user_id}\n"
+            f"👤 Name: {user.first_name or 'User'} "
+            f"{user.last_name or ''}\n"
+            f"🔗 Username: {username}\n"
+            f"🌍 Language: {user.language or 'en'}\n"
+            f"💬 Messages: {message_count}\n\n"
+            "🤖 AI Engineering Assistant"
+        )
+
+    except Exception as e:
+        print("❌ PROFILE ERROR:", repr(e))
+
+        await update.message.reply_text(
+            "❌ Unable to load your profile."
+        )
+
+    finally:
+        db.close()
+#=======
+#=====language ===
+async def language_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    await update.message.reply_text(
+        "🌍 LANGUAGE SETTINGS\n\n"
+        "/english 🇬🇧\n"
+        "/hindi 🇮🇳\n"
+        "/telugu 🇮🇳"
+    )   
+def update_language(user_id: int, language: str):
+    db = SessionLocal()
+
+    try:
+        user = (
+            db.query(User)
+            .filter(
+                User.telegram_user_id == user_id
+            )
+            .first()
+        )
+
+        if not user:
+            return False
+
+        user.language = language
+        db.commit()
+
+        return True
+
+    except Exception as e:
+        db.rollback()
+        print("❌ LANGUAGE DB ERROR:", repr(e))
+        return False
+
+    finally:
+        db.close()  
+async def english_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if update_language(
+        update.effective_user.id,
+        "en"
+    ):
+        await update.message.reply_text(
+            "🇬🇧 Language changed to English."
+        )
+    else:
+        await update.message.reply_text(
+            "❌ Please use /start first."
+        )    
+async def hindi_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if update_language(
+        update.effective_user.id,
+        "hi"
+    ):
+        await update.message.reply_text(
+            "🇮🇳 भाषा हिंदी में बदल दी गई है।"
+        )
+    else:
+        await update.message.reply_text(
+            "❌ पहले /start का उपयोग करें।"
+        )     
+async def telugu_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if update_language(
+        update.effective_user.id,
+        "te"
+    ):
+        await update.message.reply_text(
+            "🇮🇳 భాష తెలుగుకు మార్చబడింది."
+        )
+    else:
+        await update.message.reply_text(
+            "❌ ముందుగా /start ఉపయోగించండి."
+        )                      
+#=======       
 async def telegram_error_handler(update, context):
     error = context.error
 
@@ -208,6 +353,25 @@ async def telegram_error_handler(update, context):
 
 bot_app.add_handler(
     CommandHandler("start", start)
+)
+bot_app.add_handler(
+    CommandHandler("profile", profile_command)
+)
+
+bot_app.add_handler(
+    CommandHandler("language", language_command)
+)
+
+bot_app.add_handler(
+    CommandHandler("english", english_command)
+)
+
+bot_app.add_handler(
+    CommandHandler("hindi", hindi_command)
+)
+
+bot_app.add_handler(
+    CommandHandler("telugu", telugu_command)
 )
 bot_app.add_handler(
     MessageHandler(
