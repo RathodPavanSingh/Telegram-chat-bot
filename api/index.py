@@ -9,6 +9,8 @@ from telegram.ext import (
     filters,
 )
 import os
+import base64
+from io import BytesIO
 
 app = FastAPI()
 
@@ -83,6 +85,81 @@ async def text_message(
         await update.message.reply_text(
             "⚠️ AI service is currently unavailable."
         )
+#====
+#image_message
+async def image_question(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    try:
+        if not update.message or not update.message.photo:
+            return
+
+        await update.message.reply_text(
+            "📷 Image received.\n"
+            "🔍 Analyzing the question..."
+        )
+
+        # Highest-resolution photo
+        photo = update.message.photo[-1]
+
+        # Download image from Telegram
+        telegram_file = await context.bot.get_file(
+            photo.file_id
+        )
+
+        image_bytes = await telegram_file.download_as_bytearray()
+
+        # Convert bytes to base64
+        image_b64 = base64.b64encode(
+            bytes(image_bytes)
+        ).decode("utf-8")
+
+        # Gemini multimodal request
+        interaction = client.interactions.create(
+            model=GEMINI_MODEL,
+            input=[
+                {
+                    "type": "text",
+                    "text": (
+                        "Analyze the uploaded image.\n\n"
+                        "If it contains a question, solve it.\n"
+                        "For mathematics, show steps.\n"
+                        "For engineering, include formulas and units.\n"
+                        "For programming, provide correct code.\n"
+                        "Use readable Unicode mathematical symbols "
+                        "instead of raw LaTeX."
+                    )
+                },
+                {
+                    "type": "image",
+                    "data": image_b64,
+                    "mime_type": "image/jpeg"
+                }
+            ]
+        )
+
+        answer = interaction.output_text
+
+        if not answer:
+            answer = "❌ I couldn't understand the image."
+
+        await update.message.reply_text(
+            answer
+        )
+
+    except Exception as e:
+
+        print("================================")
+        print("❌ IMAGE ERROR")
+        print(repr(e))
+        print("================================")
+
+        await update.message.reply_text(
+            "❌ I couldn't process the image.\n\n"
+            "Please upload a clearer image."
+        )
+# ====        
 async def telegram_error_handler(update, context):
     error = context.error
 
@@ -131,6 +208,12 @@ async def telegram_error_handler(update, context):
 
 bot_app.add_handler(
     CommandHandler("start", start)
+)
+bot_app.add_handler(
+    MessageHandler(
+        filters.PHOTO,
+        image_question
+    )
 )
 
 bot_app.add_handler(
