@@ -83,7 +83,51 @@ async def text_message(
         await update.message.reply_text(
             "⚠️ AI service is currently unavailable."
         )
+async def telegram_error_handler(update, context):
+    error = context.error
 
+    print("================================")
+    print("❌ TELEGRAM/APP ERROR")
+    print(repr(error))
+    print("================================")
+
+    # Do not hide database / application errors as network errors.
+    message = "❌ An error occurred while processing your request."
+
+    if "UndefinedColumn" in str(error):
+        message = (
+            "❌ Database schema is outdated.\n\n"
+            "Please update the PostgreSQL tables."
+        )
+
+    elif "does not exist" in str(error):
+        message = (
+            "❌ Database/table configuration problem.\n\n"
+            "Please check DATABASE_URL and PostgreSQL tables."
+        )
+
+    elif "Conflict" in str(error):
+        message = (
+            "⚠️ Another bot instance is running.\n\n"
+            "Stop the other bot process and try again."
+        )
+
+    elif "TimedOut" in str(error) or "NetworkError" in str(error):
+        message = (
+            "⚠️ Telegram network connection timed out.\n"
+            "Please try again."
+        )
+
+    try:
+        if update and update.effective_message:
+            await update.effective_message.reply_text(
+                message
+            )
+    except Exception as send_error:
+        print(
+            "❌ ERROR SENDING ERROR MESSAGE:",
+            repr(send_error)
+        )
 
 bot_app.add_handler(
     CommandHandler("start", start)
